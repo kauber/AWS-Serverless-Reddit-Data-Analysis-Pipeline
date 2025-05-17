@@ -1,0 +1,227 @@
+################################################################################
+# Terraform - General
+################################################################################
+# Local .terraform directories
+.terraform/
+
+# .tfstate files
+*.tfstate
+*.tfstate.*.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Ignore any .tfvars files, sensitive data should be managed securely elsewhere
+# or by using environment variables, not committed.
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually environment-specific
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include an example tfvars file if you wish, but ignore the actual one.
+# For example, if you have secrets.tfvars.example, keep that, but ignore secrets.tfvars.
+# !secrets.tfvars.example
+
+# Terraform EKS Helm provider credentials
+.terraform.d/plugins/*/helm-*
+
+# Terraform plan files
+*.tfplan
+
+# Terraform private module source cache (used by terraform get -update=true)
+.terraform/modules/
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+################################################################################
+# Python (Common for Lambda code, utility scripts)
+################################################################################
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+# Usually dist/ but potentially other locations
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+################################################################################
+# AWS / Cloud Specific
+################################################################################
+# AWS SAM build artifacts
+.aws-sam/
+
+# Serverless Framework specific files
+.serverless/
+
+# AWS CDK specific files
+cdk.out/
+cdk.context.json
+
+################################################################################
+# OS-specific / Editor-specific
+################################################################################
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear on external disks
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+# KDE KDevelop directory
+.kdev4/
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm, etc.)
+.idea/
+*.iws
+*.iml
+*.ipr
+# Rider
+#.idea.rider*/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+################################################################################
+# General / Other
+################################################################################
+# Log files
+*.log
+logs/
+*.log.*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*.swn
+
+# Zipped archives (often outputs of build processes or temporary)
+# You might want to commit specific archives if they are part of your source,
+# but often they are build artifacts. Be selective.
+# *.zip
+# *.tar.gz
+# *.tgz
+
+# Output directories (common names)
+out/
+output/
+
+# Sensitive configuration files (general pattern)
+# config.json
+# secrets.yml
+# credentials.*
+
+# Local lambda build/packaging artifacts (if you build zips locally before terraform)
+# These were already handled by your data "archive_file" output_path in Terraform,
+# but if you had manual steps.
+# ./archived_lambda_layer_*.zip
+# ./archived_lambda_code_*.zip
+
+################################################################################
+# Project Specific (Add any other files unique to your project)
+################################################################################
+# Example: if you have a local SQLite DB for testing
+# *.sqlite
+# *.db
+
+
+!lambda_layer/python/lib/
