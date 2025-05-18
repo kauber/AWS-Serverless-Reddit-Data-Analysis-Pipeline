@@ -141,8 +141,8 @@ resource "aws_lambda_function" "reddit_analyzer_lambda" {
   runtime          = var.lambda_runtime
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
-  filename         = data.archive_file.lambda_code_zip.output_path # Correctly references the data block
-  source_code_hash = data.archive_file.lambda_code_zip.output_base64sha256 # Correctly references
+  filename         = data.archive_file.lambda_code_zip.output_path 
+  source_code_hash = data.archive_file.lambda_code_zip.output_base64sha256 
 
   layers = [
     aws_lambda_layer_version.lambda_deps_layer.arn
@@ -222,7 +222,7 @@ resource "aws_lambda_permission" "allow_cloudwatch_to_call_lambda" {
 # --- Glue Data Catalog Database ---
 
 resource "aws_glue_catalog_database" "reddit_data_db" {
-  name        = "${var.project_name}_reddit_data_db" # Consider making this a variable
+  name        = "${var.project_name}_reddit_data_db" 
   description = "Database for Reddit posts data crawled from S3"
 
   tags = {
@@ -324,13 +324,6 @@ resource "aws_iam_role_policy_attachment" "glue_crawler_policy_attach" {
   policy_arn = aws_iam_policy.glue_crawler_policy.arn
 }
 
-# Optional: Attach the AWS managed policy for basic Glue service access
-# resource "aws_iam_role_policy_attachment" "glue_service_role_attach" {
-#   role       = aws_iam_role.glue_crawler_role.name
-#   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
-# }
-# Note: AWSGlueServiceRole is quite broad. The custom policy above is more specific.
-
 # --- Glue Crawler ---
 
 resource "aws_glue_crawler" "reddit_data_crawler" {
@@ -340,12 +333,6 @@ resource "aws_glue_crawler" "reddit_data_crawler" {
 
   s3_target {
     path = "s3://${aws_s3_bucket.reddit_data.id}/${var.s3_key_prefix}/"
-    # if you have many small files, you can group them for the crawler
-    # grouping {
-    #   table_level_configuration = {
-    #     size_threshold_in_mb = 1
-    #   }
-    # }
   }
 
   # Example: Run weekly on Saturday at 2 AM UTC after Friday's Lambda run
@@ -380,8 +367,6 @@ resource "aws_glue_crawler" "reddit_data_crawler" {
 # --- S3 Bucket for Athena Query Results ---
 
 resource "aws_s3_bucket" "athena_query_results" {
-  # Bucket names must be globally unique.
-  # Using account ID and region helps ensure uniqueness.
   bucket = "${lower(var.project_name)}-athena-results-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}" # Consider making this a variable
 
   tags = {
@@ -416,10 +401,6 @@ resource "aws_athena_workgroup" "reddit_analyzer_workgroup" {
   configuration {
     result_configuration {
       output_location = "s3://${aws_s3_bucket.athena_query_results.id}/"
-      # Optional: encryption_configuration for query results
-      # encryption_configuration {
-      #   encryption_option = "SSE_S3" # or SSE_KMS, CSE_KMS
-      # }
     }
     # Optional: enforce workgroup configuration to prevent users from overriding output location
     enforce_workgroup_configuration = true

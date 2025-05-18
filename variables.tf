@@ -93,7 +93,7 @@ variable "secrets_manager_secret_arn" {
 variable "bedrock_model_id" {
   description = "Bedrock Model ID to use for summarization (e.g., anthropic.claude-3-haiku-20240307-v1:0)."
   type        = string
-  default     = "anthropic.claude-3-haiku-20240307-v1:0" # This is a general model ID, usually fine to keep.
+  default     = "anthropic.claude-3-haiku-20240307-v1:0" # This is a general model ID
 }
 
 variable "bedrock_model_arn" {

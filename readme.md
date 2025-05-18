@@ -74,7 +74,7 @@ Before deploying this project, ensure you have the following:
         {
           "REDDIT_CLIENT_ID": "YOUR_REDDIT_CLIENT_ID",
           "REDDIT_CLIENT_SECRET": "YOUR_REDDIT_CLIENT_SECRET",
-          "REDDIT_USER_AGENT": "AWSAnalysisBot/0.1 by YourUsername" // Be descriptive
+          "REDDIT_USER_AGENT": "AWSAnalysisBot/0.1 by YourUsername" 
         }
         ```
     *   Note down the **ARN** of this secret.
