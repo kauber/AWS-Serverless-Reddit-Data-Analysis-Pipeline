@@ -35,7 +35,7 @@ The pipeline follows a serverless, event-driven architecture:
 
 ### Architecture Diagram
 
-[Architecture Diagram](./diagrams/redditawsproject.drawio.png) 
+![Architecture Diagram](./assets/redditawsproject.drawio.png)
 
 
 ## AWS Services Used
@@ -164,10 +164,6 @@ Before deploying this project, ensure you have the following:
 4.  You can now query the `reddit_analysis` table.
 
     **Example Queries:**
-    *   List all columns in the table:
-        ```sql
-        DESCRIBE "reddit_analysis";
-        ```
     *   Get the 10 most recent posts (assuming a timestamp column):
         ```sql
         -- Assuming you have a 'submission_timestamp' column
