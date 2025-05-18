@@ -1,161 +1,204 @@
 # AWS Serverless Reddit Data Analysis Pipeline
 
-This project implements a serverless data pipeline on AWS that pulls posts from a specified Reddit subreddit, summarizes them using Amazon Bedrock, stores the data in a data lake, and makes it queryable with Amazon Athena. This project serves as a learning experience and portfolio piece demonstrating various AWS services and best practices.
+This project implements a serverless data pipeline on AWS to pull posts from the r/aws subreddit, summarize them using Amazon Bedrock (Anthropic Claude 3), and store the data for analysis using AWS Glue and Amazon Athena. It serves as a portfolio project to demonstrate real-world AWS service integration and data engineering practices, all provisioned using Terraform.
 
-## Architecture
+## Project Goal
 
-The pipeline consists of the following components, orchestrated using Terraform:
+The primary goal is to collect and analyze discussions from the r/aws subreddit to identify real-world problems, solutions, and trends discussed by the AWS community. This data can then be studied to enhance understanding of common AWS challenges and use cases.
 
-[**Insert Architecture Diagram Here - You can create this using a tool like draw.io or Lucidchart and link to it**]
+## Architecture Overview
 
-1.  **EventBridge Schedule:** An EventBridge rule triggers the data ingestion process on a regular schedule (default: weekly on Fridays at 3 PM UTC).
+The pipeline follows a serverless, event-driven architecture:
 
-2.  **AWS Lambda Function (redditAwsPostAnalyzer):**
-    *   This Python-based Lambda function is the core of the data ingestion process.
-    *   It uses the Reddit API to retrieve recent posts from a specified subreddit (default: "aws").
-    *   For each post:
-        *   It calls Amazon Bedrock to generate a summary of the post.
-        *   It stores the post data and summary in an Amazon S3 bucket in Parquet format.
-        *   To prevent duplicate processing, it stores the Reddit post ID in an Amazon DynamoDB table.
+1.  **Data Ingestion (Scheduled):**
+    *   An **Amazon EventBridge (CloudWatch Events) Schedule** triggers an AWS Lambda function on a regular basis (e.g., daily or weekly).
 
-3.  **Amazon DynamoDB Table (RedditAwsAnalysis):**
-    *   This table stores the IDs of processed Reddit posts.
-    *   Before processing a post, the Lambda function checks if the ID exists in this table. If it does, the post is skipped.
-    *   This ensures idempotency and prevents reprocessing of the same Reddit content.
+2.  **Data Processing & Enrichment (AWS Lambda):**
+    *   The **AWS Lambda** function is written in Python and performs the following:
+        *   Retrieves Reddit API credentials securely from **AWS Secrets Manager**.
+        *   Queries an **Amazon DynamoDB** table to check for already processed post IDs, preventing duplicate ingestion.
+        *   Pulls the latest posts (e.g., last 5 new posts) and their comments from the specified Reddit subreddit (r/aws) using the Reddit API (PRAW library).
+        *   For each new post, it sends the content (e.g., post body or a combination of title and body) to **Amazon Bedrock**, invoking a foundation model (e.g., Anthropic Claude 3 Haiku) to generate a concise summary.
+        *   Saves the original post data along with its generated summary as a Parquet file in an **Amazon S3** bucket. Data in S3 is partitioned (e.g., by year, month, day) to optimize downstream querying.
+        *   Stores the ID of the processed post in the **Amazon DynamoDB** table to mark it as processed.
 
-4.  **Amazon S3 Bucket (reddit-data-aws):**
-    *   This S3 bucket acts as the data lake, storing the raw Reddit post data and summaries in Parquet format.
-    *   Data is partitioned by date (year, month, day) to optimize query performance.
-    *   Example S3 path: `s3://reddit-data-aws/reddit-analysis/year=2024/month=05/day=18/data.parquet`
+3.  **Data Cataloging (AWS Glue):**
+    *   An **AWS Glue Crawler** is scheduled to run periodically (e.g., daily or weekly, after data ingestion).
+    *   The crawler scans the Parquet files in the S3 bucket.
+    *   It infers the schema and partition structure, then creates or updates a table definition in the **AWS Glue Data Catalog**. This catalog acts as a central metastore for your data.
 
-5.  **AWS Glue Data Catalog:**
-    *   The AWS Glue Data Catalog provides metadata management and schema discovery for the data in S3.
-    *   It defines a database (`reddit-aws-analyzer_reddit_data_db`) and a table (`reddit_analysis`) that describe the structure of the Parquet files in S3.
+4.  **Data Querying & Analysis (Amazon Athena):**
+    *   **Amazon Athena** is used to run standard SQL queries directly on the data stored in S3.
+    *   Athena uses the table definitions in the AWS Glue Data Catalog to understand the data's schema and location.
+    *   Query results from Athena are stored in a separate S3 bucket.
+    *   This allows for ad-hoc analysis, data exploration, and can be a source for BI tools like Amazon QuickSight.
 
-6.  **AWS Glue Crawler (reddit-aws-analyzer-reddit-data-crawler):**
-    *   The Glue Crawler automatically crawls the S3 bucket, infers the schema of the Parquet files, and creates/updates the table definition in the Glue Data Catalog.
-    *   It also detects and registers new partitions (based on the date-based folder structure) in the Glue Data Catalog.
-    *   The crawler is scheduled to run regularly (default: weekly on Saturdays at 2 AM UTC), after the Lambda function has had a chance to ingest new data.
+### Architecture Diagram
 
-7.  **Amazon Athena:**
-    *   Amazon Athena is a serverless query service that allows you to analyze the data in S3 using standard SQL.
-    *   Athena uses the Glue Data Catalog to understand the structure of the data.
-    *   Query results are stored in a separate S3 bucket (described below).
+<!-- ![Architecture Diagram](./diagrams/redditawsproject.drawio.png) -->
 
-8.  **Amazon S3 Bucket for Athena Query Results (reddit-aws-analyzer-athena-results-\<account-id>-\<region>):**
-    *   This S3 bucket stores the results of Athena queries.
-    *   It is separate from the main data bucket to allow for different lifecycle policies and access controls.
 
-9.  **Amazon Bedrock:**
-    *   Amazon Bedrock is used to generate summaries of the Reddit posts.
-    *   The Lambda function invokes a specified Bedrock model (default: Anthropic Claude 3 Haiku) to summarize the post text.
+## AWS Services Used
+
+*   **AWS Lambda:** Serverless compute for data ingestion and processing.
+*   **Amazon EventBridge (CloudWatch Events):** Schedules Lambda function invocations.
+*   **Amazon S3:** Scalable storage for raw and processed data (Parquet files) and Athena query results.
+*   **Amazon DynamoDB:** NoSQL database for tracking processed Reddit post IDs.
+*   **AWS Secrets Manager:** Securely stores Reddit API credentials.
+*   **Amazon Bedrock:** Provides access to foundation models (Anthropic Claude 3) for text summarization.
+*   **AWS Glue:**
+    *   **Glue Data Catalog:** Metastore for data schemas and partitions.
+    *   **Glue Crawler:** Discovers and catalogs data from S3.
+*   **Amazon Athena:** Serverless interactive query service for analyzing data in S3 using SQL.
+*   **AWS IAM:** Manages permissions and access for all services.
+*   **Terraform:** Infrastructure as Code (IaC) tool used to provision and manage all AWS resources.
 
 ## Prerequisites
 
-Before deploying this project, you will need:
+Before deploying this project, ensure you have the following:
 
-*   An AWS account.
-*   The AWS CLI installed and configured with appropriate credentials.
-*   Terraform installed (version >= 1.0).
-*   Python 3.9 or later installed.
-*   A Reddit API client ID and secret (see instructions below).
+1.  **AWS Account:** An active AWS account.
+2.  **AWS CLI:** Configured with credentials that have permissions to create the necessary resources.
+3.  **Terraform:** Installed locally (see [Terraform Installation Guide](https://learn.hashicorp.com/tutorials/terraform/install-cli)).
+4.  **Reddit API Credentials:**
+    *   You need to register an application on Reddit to get a **Client ID** and **Client Secret**.
+    *   Go to [Reddit Apps](https://www.reddit.com/prefs/apps).
+    *   Click "are you a developer? create an app...".
+    *   Choose a name, select "script" as the type, and provide a redirect URI (e.g., `http://localhost:8080` - it won't actually be used for a script app).
+    *   Once created, you will see your `client_id` (under the app name) and `client_secret`.
+5.  **Store Reddit Credentials in AWS Secrets Manager:**
+    *   Create a new secret in AWS Secrets Manager.
+    *   Choose "Other type of secret".
+    *   Store the secret as key/value pairs. For example:
+        ```json
+        {
+          "REDDIT_CLIENT_ID": "YOUR_REDDIT_CLIENT_ID",
+          "REDDIT_CLIENT_SECRET": "YOUR_REDDIT_CLIENT_SECRET",
+          "REDDIT_USER_AGENT": "AWSAnalysisBot/0.1 by YourUsername" // Be descriptive
+        }
+        ```
+    *   Note down the **ARN** of this secret.
 
-## 1. Create Reddit API Credentials
+## Project Structure
 
-This project requires access to the Reddit API. To obtain credentials:
+.
+├── lambda_code/ # Python source code for the AWS Lambda function
+│ └── redditAwsPostAnalyzer.py
+├── lambda_layer/ # Dependencies for the Lambda function (packaged as a layer)
+│ └── python/ # Standard directory structure for Python layers
+│ └── <package_files>...
+├── main.tf # Main Terraform configuration file
+├── variables.tf # Terraform variable definitions
+├── outputs.tf # Terraform output definitions
+├── providers.tf # Terraform provider configurations
+├── .gitignore # Specifies intentionally untracked files that Git should ignore
+└── README.md # This file
 
-1.  Create a Reddit account (if you don't already have one) and log in.
-2.  Go to [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps)
-3.  Click the "Create App" button.
-4.  Fill out the form with the following information:
-    *   **Name:** A descriptive name for your app (e.g., "AWS Reddit Analyzer").
-    *   **App type:** `script`
-    *   **description:** A description for the app
-    *   **about url:** The url of your project
-    *   **redirect uri:** `http://localhost:8080` (This is a placeholder and does not need to be a real URL).
-5.  Click "Create App".
-6.  You will see:
-    *   A **client ID** (below "personal use script") - this is the `client_id`
-    *   A **secret** (next to "secret") - this is the `client_secret`
 
-## 2. Store Reddit API Credentials in AWS Secrets Manager
+## Deployment Instructions
 
-1.  Go to the AWS Secrets Manager console.
-2.  Click "Store a new secret".
-3.  Choose "Other type of secret".
-4.  Enter the following key-value pairs:
-    *   `client_id`: Your Reddit API client ID.
-    *   `client_secret`: Your Reddit API client secret.
-    *   `user_agent`: A descriptive user agent string (e.g., "RedditAwsAnalyzer/1.0 (by /u/\<your-reddit-username>)").
-5.  Choose a secret name (e.g., `reddit_api`).
-6.  Configure encryption and replication as needed (the defaults are usually fine).
-7.  Review and store the secret.
-8.  **Note the ARN of the secret.** You will need this for the Terraform configuration.
-
-## Terraform Deployment
-
-1.  **Clone the repository:**
+1.  **Clone the Repository:**
     ```bash
-    git clone <your-github-repo-url>
-    cd <project-directory>
+    git clone <repository-url>
+    cd <repository-name>
     ```
 
-2.  **Create a `terraform.tfvars` file:**
-    Create a file named `terraform.tfvars` in the root of the project directory. This file will contain the values for the required variables. The file will be ignored by Git due to the `.gitignore` configuration.
+2.  **Prepare Lambda Layer Dependencies (if not already packaged):**
+    Ensure the `lambda_layer/python/` directory contains all necessary Python packages. If you have a `requirements.txt` for the layer:
+    ```bash
+    # Example:
+    # mkdir -p lambda_layer/python
+    # pip install -r lambda_layer/requirements.txt -t ./lambda_layer/python/
+    ```
 
-    Populate the `terraform.tfvars` file with the following, replacing the placeholders with your actual values:
+3.  **Configure Terraform Variables:**
+    Create a file named `terraform.tfvars` in the root of the project directory. This file will contain values for variables that need to be set for your specific deployment. **This file should NOT be committed to Git if it contains sensitive information (it's usually covered by `.gitignore`).**
 
     ```terraform
-    # terraform.tfvars
+    // terraform.tfvars
 
-    aws_region                 = "your-desired-aws-region"       # e.g., "us-east-1", "eu-central-1"
-    s3_bucket_name             = "your-globally-unique-s3-bucket-name-for-data"  # Must be globally unique.
-    secrets_manager_secret_arn = "arn:aws:secretsmanager:YOUR_REGION:YOUR_ACCOUNT_ID:secret:YOUR_SECRET_NAME-XXXXXX" # Replace with the ARN of your Secrets Manager secret for Reddit API
+    // REQUIRED: Provide your globally unique S3 bucket name for storing ingested data
+    s3_bucket_name = "your-unique-bucket-name-for-reddit-data"
+
+    // REQUIRED: Provide the ARN of the AWS Secrets Manager secret containing your Reddit API credentials
+    secrets_manager_secret_arn = "arn:aws:secretsmanager:YOUR_REGION:YOUR_ACCOUNT_ID:secret:YOUR_SECRET_NAME-XXXXXX"
+
+    // Optional: Override the default AWS region if needed
+    // aws_region = "us-east-1"
+
+    // Optional: Override other variables defined in variables.tf as needed
+    // project_name = "my-custom-reddit-analyzer"
     ```
 
-3.  **Initialize Terraform:**
+4.  **Initialize Terraform:**
+    This command downloads the necessary provider plugins.
     ```bash
     terraform init
     ```
 
-4.  **Plan the deployment:**
+5.  **Plan the Deployment:**
+    This command shows you what resources Terraform will create, modify, or destroy.
     ```bash
     terraform plan
     ```
+    Review the plan carefully.
 
-5.  **Apply the deployment:**
+6.  **Apply the Configuration:**
+    This command provisions the infrastructure on AWS.
     ```bash
     terraform apply
     ```
+    Type `yes` when prompted to confirm.
 
-    Confirm the changes by typing `yes` when prompted.
+## Post-Deployment
 
-6.  **Note the outputs:**
-    After the deployment is complete, Terraform will output the names and ARNs of the created resources.
+*   The EventBridge schedule will start triggering the Lambda function as per its cron expression.
+*   The Glue Crawler will run on its schedule to catalog new data.
+*   After the first few successful Lambda runs and a Glue Crawler run, you can start querying your data in Amazon Athena using the `reddit-aws-analyzer_reddit_data_db` database and the `reddit_analysis` table (or similar, based on actual names).
 
-## Accessing and Analyzing Data
+## Querying Data with Athena
 
-1.  **Access the Athena Console:**
-    *   Go to the Amazon Athena console in the AWS Management Console.
+1.  Go to the Amazon Athena console in your AWS account and selected region.
+2.  Ensure your **Workgroup** is set to `reddit-aws-analyzer-workgroup` (or the name derived from your `project_name`).
+3.  Select the **Database**: `reddit-aws-analyzer_reddit_data_db`.
+4.  You can now query the `reddit_analysis` table.
 
-2.  **Select the Workgroup:**
-    *   Ensure that you select the workgroup `reddit-aws-analyzer-workgroup`
-
-3.  **Select the Database:**
-    *   Ensure that the database `reddit-aws-analyzer_reddit_data_db` is selected.
-
-4.  **Query the Data:**
-    *   Write and run SQL queries to analyze the Reddit data and summaries.
-    *   Example:
+    **Example Queries:**
+    *   List all columns in the table:
         ```sql
-        SELECT *
-        FROM "reddit_analysis"
-        LIMIT 10;
+        DESCRIBE "reddit_analysis";
+        ```
+    *   Get the 10 most recent posts (assuming a timestamp column):
+        ```sql
+        -- Assuming you have a 'submission_timestamp' column
+        -- SELECT * FROM "reddit_analysis"
+        -- ORDER BY submission_timestamp DESC
+        -- LIMIT 10;
+        ```
+    *   Find posts summarized with a specific category (assuming 'suggestedcategories' is an array):
+        ```sql
+        -- SELECT *
+        -- FROM "reddit_analysis"
+        -- WHERE CONTAINS(suggestedcategories, 'Databases');
         ```
 
-## Destroying the Infrastructure
+## Cleaning Up
 
-To destroy all the resources created by this Terraform configuration:
-
+To remove all resources created by this Terraform configuration:
 ```bash
 terraform destroy
+
+
+**Key things I've added or emphasized based on our discussion:**
+
+*   **Title:** Used a descriptive title.
+*   **Architecture:** Detailed breakdown mirroring your understanding and the components we've configured. Explicitly mentioned Secrets Manager for credentials and partitioned S3 data.
+*   **Diagram Placeholder:** Added a clear spot for your diagram.
+*   **AWS Services Used:** Comprehensive list.
+*   **Prerequisites:** Very specific about Reddit API credentials and storing them in Secrets Manager, including an example JSON structure for the secret.
+*   **Project Structure:** Reflects the standard layout.
+*   **Deployment:** Includes steps for preparing the Lambda layer (if needed by a user cloning the repo) and a clear example for `terraform.tfvars` focusing on the **REQUIRED** variables.
+*   **Post-Deployment & Querying:** Guides the user on how to start using Athena.
+*   **Cleanup:** Standard `terraform destroy`.
+
+This `README.md` should give anyone (including your future self) a very good understanding of the project and how to get it running. Remember to replace `<repository-url>` and `<repository-name>` in the clone instructions.
