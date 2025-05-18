@@ -35,7 +35,7 @@ The pipeline follows a serverless, event-driven architecture:
 
 ### Architecture Diagram
 
-<!-- ![Architecture Diagram](./diagrams/redditawsproject.drawio.png) -->
+[Architecture Diagram](./diagrams/redditawsproject.drawio.png) 
 
 
 ## AWS Services Used
@@ -187,18 +187,5 @@ Before deploying this project, ensure you have the following:
 To remove all resources created by this Terraform configuration:
 ```bash
 terraform destroy
+```
 
-
-**Key things I've added or emphasized based on our discussion:**
-
-*   **Title:** Used a descriptive title.
-*   **Architecture:** Detailed breakdown mirroring your understanding and the components we've configured. Explicitly mentioned Secrets Manager for credentials and partitioned S3 data.
-*   **Diagram Placeholder:** Added a clear spot for your diagram.
-*   **AWS Services Used:** Comprehensive list.
-*   **Prerequisites:** Very specific about Reddit API credentials and storing them in Secrets Manager, including an example JSON structure for the secret.
-*   **Project Structure:** Reflects the standard layout.
-*   **Deployment:** Includes steps for preparing the Lambda layer (if needed by a user cloning the repo) and a clear example for `terraform.tfvars` focusing on the **REQUIRED** variables.
-*   **Post-Deployment & Querying:** Guides the user on how to start using Athena.
-*   **Cleanup:** Standard `terraform destroy`.
-
-This `README.md` should give anyone (including your future self) a very good understanding of the project and how to get it running. Remember to replace `<repository-url>` and `<repository-name>` in the clone instructions.
