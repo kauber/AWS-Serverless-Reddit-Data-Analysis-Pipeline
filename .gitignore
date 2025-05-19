@@ -18,6 +18,7 @@ terraform.tfstate.backup
 *.swo
 *.bak
 *.tmp
+*.zip
 .DS_Store
 Thumbs.db
 

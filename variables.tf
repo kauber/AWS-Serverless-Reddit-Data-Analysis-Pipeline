@@ -116,6 +116,18 @@ variable "comment_limit" {
   default     = "5"
 }
 
+variable "new_comments_to_process" {
+  description = "Minimum number of comments"
+  type        = string
+  default     = "2"
+}
+
+variable "new_post_check_limit" {
+  description = "Number of posts to check"
+  type        = string
+  default     = "50"
+}
+
 # --- EventBridge Schedule Variables ---
 
 variable "lambda_eventbridge_schedule_name" {

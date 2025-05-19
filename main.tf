@@ -154,6 +154,8 @@ resource "aws_lambda_function" "reddit_analyzer_lambda" {
       POST_LIMIT           = var.post_limit
       SUBREDDIT_NAME       = "aws"
       COMMENT_LIMIT        = var.comment_limit
+      MIN_COMMENTS_TO_PROCESS = var.new_comments_to_process
+      NEW_POST_CHECK_LIMIT = var.new_post_check_limit
       DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
       S3_BUCKET_NAME       = aws_s3_bucket.reddit_data.id
       BEDROCK_MODEL_ID     = var.bedrock_model_id
