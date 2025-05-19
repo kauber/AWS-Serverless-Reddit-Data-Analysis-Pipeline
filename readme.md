@@ -81,7 +81,20 @@ Before deploying this project, ensure you have the following:
 
 ## Project Structure
 
-<pre> <code>```text . ├── lambda_code/ # Python source code for the AWS Lambda function │ └── redditAwsPostAnalyzer.py ├── lambda_layer/ # Dependencies for the Lambda function (packaged as a layer) │ └── python/ # Standard directory structure for Python layers │ └── <package_files>... ├── main.tf # Main Terraform configuration file ├── variables.tf # Terraform variable definitions ├── outputs.tf # Terraform output definitions ├── providers.tf # Terraform provider configurations ├── .gitignore # Specifies intentionally untracked files that Git should ignore └── README.md # This file ```</code> </pre>
+```
+.
+├── lambda_code/                # Python source code for the AWS Lambda function
+│   └── redditAwsPostAnalyzer.py
+├── lambda_layer/              # Dependencies for the Lambda function (packaged as a layer)
+│   └── python/                # Standard directory structure for Python layers
+│       └── <package_files>...
+├── main.tf                    # Main Terraform configuration file
+├── variables.tf               # Terraform variable definitions
+├── outputs.tf                 # Terraform output definitions
+├── providers.tf               # Terraform provider configurations
+├── .gitignore                 # Specifies intentionally untracked files that Git should ignore
+└── README.md                  # This file
+```
 
 
 ## Deployment Instructions
