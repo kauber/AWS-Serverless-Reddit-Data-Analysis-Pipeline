@@ -1,6 +1,6 @@
 # AWS Serverless Reddit Data Analysis Pipeline
 
-This project implements a serverless data pipeline on AWS to pull posts from the r/aws subreddit, summarize them using Amazon Bedrock (Anthropic Claude 3), and store the data for analysis using AWS Glue and Amazon Athena. It serves as a portfolio project to demonstrate real-world AWS service integration and data engineering practices, all provisioned using Terraform.
+This project implements a serverless data pipeline on AWS to pull posts from the r/aws subreddit, summarize them using Amazon Bedrock (Anthropic Claude 3), and store the data for analysis using AWS Glue and Amazon Athena. It demonstrates real-world AWS service integration and data engineering practices, all provisioned using Terraform.
 
 ## Project Goal
 
@@ -81,18 +81,7 @@ Before deploying this project, ensure you have the following:
 
 ## Project Structure
 
-.
-├── lambda_code/ # Python source code for the AWS Lambda function
-│ └── redditAwsPostAnalyzer.py
-├── lambda_layer/ # Dependencies for the Lambda function (packaged as a layer)
-│ └── python/ # Standard directory structure for Python layers
-│ └── <package_files>...
-├── main.tf # Main Terraform configuration file
-├── variables.tf # Terraform variable definitions
-├── outputs.tf # Terraform output definitions
-├── providers.tf # Terraform provider configurations
-├── .gitignore # Specifies intentionally untracked files that Git should ignore
-└── README.md # This file
+<pre> <code>```text . ├── lambda_code/ # Python source code for the AWS Lambda function │ └── redditAwsPostAnalyzer.py ├── lambda_layer/ # Dependencies for the Lambda function (packaged as a layer) │ └── python/ # Standard directory structure for Python layers │ └── <package_files>... ├── main.tf # Main Terraform configuration file ├── variables.tf # Terraform variable definitions ├── outputs.tf # Terraform output definitions ├── providers.tf # Terraform provider configurations ├── .gitignore # Specifies intentionally untracked files that Git should ignore └── README.md # This file ```</code> </pre>
 
 
 ## Deployment Instructions
