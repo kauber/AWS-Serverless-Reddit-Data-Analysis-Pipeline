@@ -18,12 +18,12 @@ output "lambda_layer_arn" {
   value       = aws_lambda_layer_version.lambda_deps_layer.arn
 }
 
-output "s3_data_bucket_name" { # Renamed for clarity to distinguish from Athena results bucket
+output "s3_data_bucket_name" {
   description = "The name of the S3 bucket for storing raw Reddit data"
   value       = aws_s3_bucket.reddit_data.id
 }
 
-output "s3_data_bucket_arn" { # Renamed for clarity
+output "s3_data_bucket_arn" {
   description = "The ARN of the S3 bucket for storing raw Reddit data"
   value       = aws_s3_bucket.reddit_data.arn
 }
@@ -40,15 +40,18 @@ output "dynamodb_table_arn" {
 
 # --- New Outputs for EventBridge, Glue, and Athena ---
 
-output "eventbridge_lambda_scheduler_name" {
-  description = "The name of the EventBridge rule scheduling the Lambda function"
-  value       = aws_cloudwatch_event_rule.lambda_weekly_scheduler.name
+# MODIFIED: Output a map of scheduler names
+output "eventbridge_lambda_scheduler_names" { 
+  description = "A map of EventBridge rule names scheduling the Lambda function, keyed by schedule identifier"
+  value       = { for k, rule in aws_cloudwatch_event_rule.lambda_weekly_scheduler : k => rule.name }
 }
 
-output "eventbridge_lambda_scheduler_arn" {
-  description = "The ARN of the EventBridge rule scheduling the Lambda function"
-  value       = aws_cloudwatch_event_rule.lambda_weekly_scheduler.arn
+# MODIFIED: Output a map of scheduler ARNs
+output "eventbridge_lambda_scheduler_arns" { 
+  description = "A map of EventBridge rule ARNs scheduling the Lambda function, keyed by schedule identifier"
+  value       = { for k, rule in aws_cloudwatch_event_rule.lambda_weekly_scheduler : k => rule.arn }
 }
+
 
 output "glue_database_name" {
   description = "The name of the Glue Data Catalog database created"

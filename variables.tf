@@ -107,7 +107,7 @@ variable "bedrock_model_arn" {
 variable "post_limit" {
   description = "Max Reddit posts to fetch per Lambda run."
   type        = string
-  default     = "10"
+  default     = "5"
 }
 
 variable "comment_limit" {
@@ -136,10 +136,10 @@ variable "lambda_eventbridge_schedule_name" {
   default     = ""
 }
 
-variable "lambda_eventbridge_schedule_expression" {
-  description = "Cron expression for the Lambda EventBridge schedule (e.g., 'cron(0 12 ? * FRI *)' for noon UTC on Fridays)."
-  type        = string
-  default     = "cron(0 12 ? * FRI *)"
+variable "lambda_eventbridge_schedule_expressions" {
+  description = "List of cron expressions for the Lambda EventBridge schedules (e.g., noon UTC on Tuesdays and Fridays)."
+  type        = list(string)
+  default     = ["cron(0 12 ? * TUE *)", "cron(0 12 ? * FRI *)"]
 }
 
 # --- Glue Specific Variables ---

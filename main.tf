@@ -197,28 +197,30 @@ resource "aws_dynamodb_table" "processed_posts_table" {
 # --- EventBridge Schedule for Lambda Function ---
 
 resource "aws_cloudwatch_event_rule" "lambda_weekly_scheduler" {
-  name                = "${var.project_name}-lambda-weekly-trigger"
-  description         = "Triggers the Reddit Analyzer Lambda weekly every Friday"
-  # Runs at 12:00 PM UTC every Friday
-  schedule_expression = "cron(0 15 ? * FRI *)"
+  for_each            = { for idx, expr in var.lambda_eventbridge_schedule_expressions : idx => expr }
+  name                = "${var.project_name}-lambda-trigger-${each.key}"
+  description         = "Triggers the Reddit Analyzer Lambda on schedule ${each.key}"
+  schedule_expression = each.value
 
   tags = {
     Project = var.project_name
   }
 }
 
-resource "aws_cloudwatch_event_target" "lambda_weekly_target" {
-  rule      = aws_cloudwatch_event_rule.lambda_weekly_scheduler.name
+resource "aws_cloudwatch_event_target" "lambda_target" {
+  for_each  = aws_cloudwatch_event_rule.lambda_weekly_scheduler
+  rule      = each.value.name
   arn       = aws_lambda_function.reddit_analyzer_lambda.arn
-  target_id = "${var.lambda_function_name}-target"
+  target_id = "${var.lambda_function_name}-target-${each.key}"
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch_to_call_lambda" {
-  statement_id  = "AllowExecutionFromCloudWatch"
+  for_each      = aws_cloudwatch_event_rule.lambda_weekly_scheduler
+  statement_id  = "AllowExecutionFromCloudWatch${each.key}"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.reddit_analyzer_lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.lambda_weekly_scheduler.arn
+  source_arn    = each.value.arn
 }
 
 # --- Glue Data Catalog Database ---

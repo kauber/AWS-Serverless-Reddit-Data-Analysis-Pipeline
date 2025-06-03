@@ -94,20 +94,28 @@ def get_secret():
 
 # --- Helper Function: Build Bedrock Prompt ---
 def build_bedrock_prompt(title, selftext, top_comments_list):
-    # ... (Same as before)
     comments_section = f"Top Comments Provided (up to {MAX_COMMENTS_FOR_PROMPT}):\n"
     if top_comments_list:
         for i, comment_body in enumerate(top_comments_list):
             truncated_comment = (comment_body[:1000] + '...') if len(comment_body) > 1000 else comment_body
-            escaped_comment = json.dumps(truncated_comment)[1:-1]
+            escaped_comment = json.dumps(truncated_comment)[1:-1] # Basic escaping for JSON in prompt
             comments_section += f"Comment {i+1}:\n{escaped_comment}\n---\n"
     else:
-        comments_section += "No relevant comments provided or fetched.\n" # Should not happen if MIN_COMMENTS_TO_PROCESS > 0
+        comments_section += "No relevant comments provided or fetched.\n"
     combined_text = f"Original Post Title: {title}\n\nOriginal Post Body:\n{selftext}\n\n{comments_section}"
+
     prompt = f"""Human: Analyze the following Reddit thread (original post and top comments) about AWS, focusing on explaining the concepts for learning purposes.
 
 1.  **Problem Identification & Summary:** Identify the core technical problem or question from the original post. Provide a concise summary (1-2 sentences) as 'problem_summary'.
-2.  **Problem Explanation:** Explain the summarized problem ('problem_summary') in simpler terms, assuming the reader may not be familiar with all concepts. Define key technical jargon or AWS services mentioned in the *original post*. Briefly explain *why* this problem might occur or why it's significant. Aim for clarity and conciseness (e.g., 2-4 sentences). Store this as 'problem_explanation'.
+2.  **Problem Explanation (Learning Focus):** The purpose of this section is to provide educational context about the technologies involved in the problem. Based on the 'problem_summary' and the *original post's content*:
+    a. Identify the 1-2 **primary AWS services or key technical concepts** that are most central to the user's problem.
+    b. For **each** of these identified core services/concepts, provide a foundational explanation suitable for a learner:
+        *   **What it is:** A clear definition.
+        *   **Its primary use case:** What it's generally used for in AWS.
+        *   **How it functions or is used:** A brief overview of its operation or common application pattern.
+        *(Example: If the problem involves an AWS Glue Crawler, explain what a Glue Crawler is, its purpose like metadata discovery and cataloging, and how it's used to make data queryable, such as: "AWS Glue Crawlers are programs that connect to your data stores (like S3 or RDS), progress through a prioritized list of classifiers to determine the schema for your data, and then create metadata tables in the AWS Glue Data Catalog. These catalog tables can then be used by services like Amazon Athena, Amazon Redshift Spectrum, and AWS Glue ETL jobs to query and transform your data.")*
+    c. After explaining the core concepts, briefly connect them back to the 'problem_summary': Explain *why* the described problem might arise with these technologies or why understanding these concepts is important for resolving the issue.
+    Focus on providing educational value rather than just rephrasing the problem. Store this as 'problem_explanation'.
 3.  **Solution Identification & Summary:** Analyze the provided top comments. Concisely summarize the main potential solutions, suggestions, or key advice offered as 'solution_summary'. If no relevant solutions are found, state "No specific solutions offered in provided comments."
 4.  **Solution Explanation:** Explain the summarized solutions ('solution_summary') in simpler terms. Define key technical terms or AWS services mentioned *in the comments*. Briefly explain the *reasoning* behind the suggestions if possible. Aim for clarity and conciseness (e.g., 2-4 sentences per major solution point). Store this as 'solution_explanation'.
 5.  **Categorization:** Identify the **top 3 most relevant** AWS service categories or technical concepts involved in the entire thread (problem and solutions). Choose from the example list or add other highly relevant technical terms (like 'Idempotency', 'Networking Concepts', etc.). Store this as 'suggested_categories'.
