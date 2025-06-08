@@ -1,7 +1,9 @@
+# variables.tf
+
 variable "aws_region" {
   description = "AWS region for deployment (e.g., us-east-1, eu-central-1)."
   type        = string
-  default     = "eu-central-1" # Or choose a common default like "us-east-1"
+  default     = "eu-central-1" # Or your preferred region
 }
 
 variable "project_name" {
@@ -15,7 +17,7 @@ variable "project_name" {
 variable "lambda_function_name" {
   description = "Name for the Lambda function."
   type        = string
-  default     = "redditAwsPostAnalyzer"
+  default     = "redditAwsPostAnalyzer" # Your original default
 }
 
 variable "lambda_code_path" {
@@ -27,7 +29,7 @@ variable "lambda_code_path" {
 variable "lambda_handler" {
   description = "Lambda handler (filename.function_name)."
   type        = string
-  default     = "redditAwsPostAnalyzer.lambda_handler"
+  default     = "redditAwsPostAnalyzer.lambda_handler" # Your original default
 }
 
 variable "lambda_runtime" {
@@ -38,20 +40,20 @@ variable "lambda_runtime" {
 
 variable "lambda_timeout" {
   description = "Lambda timeout in seconds."
-  type        = number
+  type        = number # Changed from string to number
   default     = 180
 }
 
 variable "lambda_memory_size" {
   description = "Lambda memory size in MB."
-  type        = number
+  type        = number # Changed from string to number
   default     = 512
 }
 
 variable "lambda_layer_name" {
   description = "Name for the Lambda layer."
   type        = string
-  default     = "reddit-aws-analyzer-deps"
+  default     = "reddit-aws-analyzer-deps" # Your original default
 }
 
 variable "lambda_layer_path" {
@@ -62,14 +64,14 @@ variable "lambda_layer_path" {
 
 # --- S3 Specific Variables ---
 
-variable "s3_bucket_name" {
-  description = "REQUIRED: Name for the S3 bucket storing raw data (must be globally unique). Example: 'my-reddit-data-unique123'."
+variable "new_s3_bucket_name_for_data" { # Renamed from s3_bucket_name to match new main.tf
+  description = "REQUIRED: A globally unique name for the NEW S3 bucket to store Reddit data. Example: 'yourname-reddit-data-unique123'."
   type        = string
-  default     = "" # User MUST provide this value.
+  # No default - User MUST provide this value to ensure uniqueness.
 }
 
 variable "s3_key_prefix" {
-  description = "Prefix within the S3 data bucket for storing parquet files."
+  description = "Prefix within the S3 data bucket for storing parquet files (e.g., reddit-analysis)."
   type        = string
   default     = "reddit-analysis"
 }
@@ -79,7 +81,7 @@ variable "s3_key_prefix" {
 variable "dynamodb_table_name" {
   description = "Name of the DynamoDB table for tracking processed posts."
   type        = string
-  default     = "RedditAwsAnalysis"
+  default     = "RedditAwsAnalysis" # Your original default
 }
 
 # --- Secrets Manager & Bedrock Variables ---
@@ -87,13 +89,13 @@ variable "dynamodb_table_name" {
 variable "secrets_manager_secret_arn" {
   description = "REQUIRED: ARN of the Secrets Manager secret containing Reddit API credentials. Example: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:MyRedditSecret-aBcDeF'."
   type        = string
-  default     = "" # User MUST provide this value.
+  # No default - User MUST provide this value.
 }
 
 variable "bedrock_model_id" {
   description = "Bedrock Model ID to use for summarization (e.g., anthropic.claude-3-haiku-20240307-v1:0)."
   type        = string
-  default     = "anthropic.claude-3-haiku-20240307-v1:0" # This is a general model ID
+  default     = "anthropic.claude-3-haiku-20240307-v1:0" # Your original default
 }
 
 variable "bedrock_model_arn" {
@@ -102,94 +104,70 @@ variable "bedrock_model_arn" {
   default     = ""
 }
 
-# --- Lambda Environment Variables (passed as strings) ---
+# --- Lambda Environment Variables (Terraform converts numbers to strings for env vars) ---
 
 variable "post_limit" {
   description = "Max Reddit posts to fetch per Lambda run."
-  type        = string
-  default     = "5"
+  type        = number # Changed from string to number
+  default     = 5
 }
 
 variable "comment_limit" {
   description = "Max comments to fetch per Reddit post."
-  type        = string
-  default     = "5"
+  type        = number # Changed from string to number
+  default     = 5
 }
 
 variable "new_comments_to_process" {
-  description = "Minimum number of comments"
-  type        = string
-  default     = "2"
+  description = "Minimum number of new comments on a post for it to be re-processed."
+  type        = number # Changed from string to number
+  default     = 2
 }
 
 variable "new_post_check_limit" {
-  description = "Number of posts to check"
-  type        = string
-  default     = "50"
+  description = "Number of recent posts to check for updates."
+  type        = number # Changed from string to number
+  default     = 50
 }
 
 # --- EventBridge Schedule Variables ---
 
-variable "lambda_eventbridge_schedule_name" {
-  description = "Optional: Name for the EventBridge rule scheduling the Lambda. If empty, derived from project_name."
-  type        = string
-  default     = ""
-}
-
 variable "lambda_eventbridge_schedule_expressions" {
   description = "List of cron expressions for the Lambda EventBridge schedules (e.g., noon UTC on Tuesdays and Fridays)."
   type        = list(string)
-  default     = ["cron(0 12 ? * TUE *)", "cron(0 12 ? * FRI *)"]
+  default     = ["cron(0 12 ? * TUE *)", "cron(0 12 ? * FRI *)"] # Your original default
 }
 
 # --- Glue Specific Variables ---
 
-variable "glue_database_name" {
-  description = "Optional: Name for the Glue Data Catalog database. If empty, derived from project_name."
+variable "glue_database_name_suffix" { # Aligned with new main.tf
+  description = "Suffix for the Glue database name (appended to project_name)."
   type        = string
-  default     = ""
+  default     = "_reddit_data_db"
 }
 
-variable "glue_crawler_name" {
-  description = "Optional: Name for the Glue Crawler. If empty, derived from project_name."
+variable "glue_crawler_name_suffix" { # Aligned with new main.tf
+  description = "Suffix for the Glue crawler name (appended to project_name)."
   type        = string
-  default     = ""
+  default     = "-reddit-data-crawler"
 }
 
-variable "glue_crawler_role_name" {
-  description = "Optional: Name for the IAM role used by the Glue Crawler. If empty, derived from project_name."
-  type        = string
-  default     = ""
-}
-
-variable "glue_crawler_schedule_expression" {
+variable "glue_crawler_schedule_expression" { # Kept from your file, main.tf uses this
   description = "Cron expression for the Glue Crawler schedule (e.g., 'cron(0 2 ? * SAT *)' for 2 AM UTC on Saturdays)."
   type        = string
-  default     = "cron(0 2 ? * SAT *)"
-}
-
-variable "glue_crawler_s3_target_path_suffix" {
-  description = "Optional: Suffix for the Glue crawler S3 target path. Defaults to var.s3_key_prefix if empty."
-  type        = string
-  default     = ""
+  default     = "cron(0 2 ? * SAT *)" # Your original default
 }
 
 # --- Athena Specific Variables ---
 
-variable "athena_workgroup_name" {
-  description = "Optional: Name for the Athena workgroup. If empty, derived from project_name."
+variable "athena_workgroup_name_suffix" { # Aligned with new main.tf
+  description = "Suffix for the Athena workgroup name (appended to project_name)."
   type        = string
-  default     = ""
+  default     = "-workgroup"
 }
 
-variable "athena_results_s3_bucket_name" {
-  description = "Optional: Name for the S3 bucket to store Athena query results. If empty, a unique name will be generated based on project_name, account ID, and region."
+variable "athena_results_bucket_suffix" { # Aligned with new main.tf
+  description = "Suffix for the Athena results bucket name (used in constructing a unique name)."
   type        = string
-  default     = ""
-}
-
-variable "athena_results_s3_key_prefix" {
-  description = "Optional key prefix within the Athena results S3 bucket."
-  type        = string
-  default     = "query_results/"
+  default     = "-athena-results"
 }
