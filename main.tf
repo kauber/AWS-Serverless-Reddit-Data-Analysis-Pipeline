@@ -1,38 +1,26 @@
 # --- IAM Role and Policy for Lambda ---
-
 resource "aws_iam_role" "lambda_exec_role" {
   name = "${var.project_name}-lambda-role"
-
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
+      Action = "sts:AssumeRole",
+      Effect = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" }
     }]
   })
-
-  tags = {
-    Project = var.project_name
-  }
+  tags = { Project = var.project_name }
 }
 
 resource "aws_iam_policy" "lambda_policy" {
   name        = "${var.project_name}-lambda-policy"
-  description = "IAM policy for Reddit AWS Analyzer Lambda"
-
+  description = "IAM policy for Lambda"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.lambda_function_name}:*"
       },
       {
@@ -41,17 +29,14 @@ resource "aws_iam_policy" "lambda_policy" {
         Resource = var.secrets_manager_secret_arn
       },
       {
-        Effect = "Allow",
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem"
-        ],
-        Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.dynamodb_table_name}"
+        Effect   = "Allow",
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"],
+        Resource = aws_dynamodb_table.processed_posts_table.arn
       },
       {
-        Effect = "Allow",
-        Action = "s3:PutObject",
-        Resource = "${aws_s3_bucket.reddit_data.arn}/${var.s3_key_prefix}/*"
+        Effect   = "Allow",
+        Action   = "s3:PutObject",
+        Resource = "${aws_s3_bucket.reddit_data_new.arn}/${var.s3_key_prefix}/*" # Points to NEW bucket
       },
       {
         Effect   = "Allow",
@@ -60,10 +45,7 @@ resource "aws_iam_policy" "lambda_policy" {
       }
     ]
   })
-
-  tags = {
-    Project = var.project_name
-  }
+  tags = { Project = var.project_name }
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
@@ -71,10 +53,9 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
-# --- S3 Bucket ---
-
-resource "aws_s3_bucket" "reddit_data" {
-  bucket = var.s3_bucket_name
+# --- NEW S3 Bucket for Reddit Data ---
+resource "aws_s3_bucket" "reddit_data_new" { # Renamed to avoid conflict if old state exists
+  bucket = var.new_s3_bucket_name_for_data # Use the new variable
 
   tags = {
     Project = var.project_name
@@ -82,56 +63,46 @@ resource "aws_s3_bucket" "reddit_data" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "reddit_data_public_access" {
-  bucket = aws_s3_bucket.reddit_data.id
-
+resource "aws_s3_bucket_public_access_block" "reddit_data_new_public_access" {
+  bucket                  = aws_s3_bucket.reddit_data_new.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_versioning" "reddit_data_versioning" {
-  bucket = aws_s3_bucket.reddit_data.id
+resource "aws_s3_bucket_versioning" "reddit_data_new_versioning" {
+  bucket = aws_s3_bucket.reddit_data_new.id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
 # --- Lambda Layer ---
-
-# Package the layer content from the source_dir
-data "archive_file" "lambda_layer_zip" { # Consistent name
+data "archive_file" "lambda_layer_zip" {
   type        = "zip"
-  source_dir  = var.lambda_layer_path # Should point to "./lambda-layer/"
-  output_path = "./archived_lambda_layer_${var.lambda_layer_name}.zip" # Temporary local zip file
+  source_dir  = var.lambda_layer_path
+  output_path = "./archived_lambda_layer_${var.lambda_layer_name}.zip"
 }
 
 resource "aws_lambda_layer_version" "lambda_deps_layer" {
   layer_name          = var.lambda_layer_name
-  filename            = data.archive_file.lambda_layer_zip.output_path # Correctly references the data block
-  source_code_hash    = data.archive_file.lambda_layer_zip.output_base64sha256 # Correctly references
+  filename            = data.archive_file.lambda_layer_zip.output_path
+  source_code_hash    = data.archive_file.lambda_layer_zip.output_base64sha256
   compatible_runtimes = [var.lambda_runtime]
-  description         = "Dependencies for ${var.project_name} Lambda"
 }
 
 # --- Lambda Function ---
-
-# Package the function code from the source_dir
-data "archive_file" "lambda_code_zip" { # Consistent name
+data "archive_file" "lambda_code_zip" {
   type        = "zip"
-  source_dir  = var.lambda_code_path # Should point to "./lambda-code/"
-  output_path = "./archived_lambda_code_${var.lambda_function_name}.zip" # Temporary local zip file
+  source_dir  = var.lambda_code_path
+  output_path = "./archived_lambda_code_${var.lambda_function_name}.zip"
 }
 
-# Optional: Manage CloudWatch Log Group explicitly for retention etc.
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
   name              = "/aws/lambda/${var.lambda_function_name}"
   retention_in_days = 14
-
-  tags = {
-    Project = var.project_name
-  }
+  tags              = { Project = var.project_name }
 }
 
 resource "aws_lambda_function" "reddit_analyzer_lambda" {
@@ -141,70 +112,52 @@ resource "aws_lambda_function" "reddit_analyzer_lambda" {
   runtime          = var.lambda_runtime
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
-  filename         = data.archive_file.lambda_code_zip.output_path 
-  source_code_hash = data.archive_file.lambda_code_zip.output_base64sha256 
-
-  layers = [
-    aws_lambda_layer_version.lambda_deps_layer.arn
-  ]
+  filename         = data.archive_file.lambda_code_zip.output_path
+  source_code_hash = data.archive_file.lambda_code_zip.output_base64sha256
+  layers           = [aws_lambda_layer_version.lambda_deps_layer.arn]
 
   environment {
     variables = {
-      MY_AWS_REGION        = var.aws_region
-      POST_LIMIT           = var.post_limit
-      SUBREDDIT_NAME       = "aws"
-      COMMENT_LIMIT        = var.comment_limit
+      MY_AWS_REGION           = var.aws_region
+      POST_LIMIT              = var.post_limit
+      SUBREDDIT_NAME          = "aws" # Example, can be a variable
+      COMMENT_LIMIT           = var.comment_limit
       MIN_COMMENTS_TO_PROCESS = var.new_comments_to_process
-      NEW_POST_CHECK_LIMIT = var.new_post_check_limit
-      DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
-      S3_BUCKET_NAME       = aws_s3_bucket.reddit_data.id
-      BEDROCK_MODEL_ID     = var.bedrock_model_id
-      S3_KEY_PREFIX        = var.s3_key_prefix
-      SECRET_NAME          = split(":", var.secrets_manager_secret_arn)[6]
+      NEW_POST_CHECK_LIMIT    = var.new_post_check_limit
+      DYNAMODB_TABLE_NAME     = aws_dynamodb_table.processed_posts_table.name # Use resource attribute
+      S3_BUCKET_NAME          = aws_s3_bucket.reddit_data_new.id              # Points to NEW bucket
+      BEDROCK_MODEL_ID        = var.bedrock_model_id
+      S3_KEY_PREFIX           = var.s3_key_prefix
+      SECRET_NAME             = split(":", var.secrets_manager_secret_arn)[6] # Assumes ARN format
     }
   }
-
-  tags = {
-    Project = var.project_name
-  }
-
-  depends_on = [aws_cloudwatch_log_group.lambda_log_group]
+  tags       = { Project = var.project_name }
+  depends_on = [aws_cloudwatch_log_group.lambda_log_group, aws_s3_bucket.reddit_data_new]
 }
 
-# --- DynamoDB Table for Processed Post IDs ---
-
+# --- DynamoDB Table ---
 resource "aws_dynamodb_table" "processed_posts_table" {
   name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "PostID"
 
-  attribute {
+  attribute { 
     name = "PostID"
-    type = "S"
-  }
+    type = "S" 
+  } 
 
   point_in_time_recovery {
     enabled = true
   }
-
-  tags = {
-    Project = var.project_name
-    Purpose = "Stores IDs of processed Reddit posts to prevent duplicates"
-  }
+  tags = { Project = var.project_name }
 }
 
-
-# --- EventBridge Schedule for Lambda Function ---
-
+# --- EventBridge Schedule ---
 resource "aws_cloudwatch_event_rule" "lambda_weekly_scheduler" {
   for_each            = { for idx, expr in var.lambda_eventbridge_schedule_expressions : idx => expr }
   name                = "${var.project_name}-lambda-trigger-${each.key}"
-  description         = "Triggers the Reddit Analyzer Lambda on schedule ${each.key}"
   schedule_expression = each.value
-
-  tags = {
-    Project = var.project_name
-  }
+  tags                = { Project = var.project_name }
 }
 
 resource "aws_cloudwatch_event_target" "lambda_target" {
@@ -224,79 +177,52 @@ resource "aws_lambda_permission" "allow_cloudwatch_to_call_lambda" {
 }
 
 # --- Glue Data Catalog Database ---
-
 resource "aws_glue_catalog_database" "reddit_data_db" {
-  name        = "${var.project_name}_reddit_data_db" 
-  description = "Database for Reddit posts data crawled from S3"
-
-  tags = {
-    Project = var.project_name
-  }
+  name = "${var.project_name}${var.glue_database_name_suffix}"
+  tags = { Project = var.project_name }
 }
 
 # --- IAM Role and Policy for Glue Crawler ---
-
 resource "aws_iam_role" "glue_crawler_role" {
   name = "${var.project_name}-glue-crawler-role"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
       Action = "sts:AssumeRole",
       Effect = "Allow",
-      Principal = {
-        Service = "glue.amazonaws.com"
-      }
+      Principal = { Service = "glue.amazonaws.com" }
     }]
   })
-
-  tags = {
-    Project = var.project_name
-  }
+  tags = { Project = var.project_name }
 }
 
 resource "aws_iam_policy" "glue_crawler_policy" {
   name        = "${var.project_name}-glue-crawler-policy"
-  description = "IAM policy for Glue crawler to access S3 and Glue Data Catalog resources"
-
+  description = "IAM policy for Glue crawler"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow",
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ],
+        Effect   = "Allow",
+        Action   = ["s3:GetObject", "s3:ListBucket"],
         Resource = [
-          aws_s3_bucket.reddit_data.arn, # For ListBucket
-          "${aws_s3_bucket.reddit_data.arn}/${var.s3_key_prefix}/*" # For GetObject
+          aws_s3_bucket.reddit_data_new.arn, # For ListBucket, points to NEW bucket
+          "${aws_s3_bucket.reddit_data_new.arn}/${var.s3_key_prefix}/*" # For GetObject, points to NEW bucket
         ]
       },
       {
-        Effect = "Allow",
-        Action = "s3:GetBucketLocation",
-        Resource = aws_s3_bucket.reddit_data.arn
+        Effect   = "Allow",
+        Action   = "s3:GetBucketLocation",
+        Resource = aws_s3_bucket.reddit_data_new.arn # Points to NEW bucket
       },
       {
         Effect = "Allow",
         Action = [
-          "glue:GetDatabase",
-          "glue:GetDatabases",
-          "glue:CreateTable",
-          "glue:UpdateTable",
-          "glue:DeleteTable",
-          "glue:GetTable",
-          "glue:GetTables",
-          "glue:GetPartition",
-          "glue:GetPartitions",
-          "glue:CreatePartition",
-          "glue:UpdatePartition",
-          "glue:DeletePartition",
-          "glue:BatchCreatePartition",
-          "glue:BatchUpdatePartition",
-          "glue:BatchDeletePartition",
-          "glue:BatchGetPartition"
+          "glue:GetDatabase", "glue:GetDatabases", "glue:CreateTable", "glue:UpdateTable",
+          "glue:DeleteTable", "glue:GetTable", "glue:GetTables", "glue:GetPartition",
+          "glue:GetPartitions", "glue:CreatePartition", "glue:UpdatePartition",
+          "glue:DeletePartition", "glue:BatchCreatePartition", "glue:BatchUpdatePartition",
+          "glue:BatchDeletePartition", "glue:BatchGetPartition"
         ],
         Resource = [
           "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
@@ -305,22 +231,13 @@ resource "aws_iam_policy" "glue_crawler_policy" {
         ]
       },
       {
-        # Required for Glue Crawlers to write logs
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws-glue/crawlers:*"
       }
-      # If using customer managed KMS keys for S3, add kms:Decrypt for Glue role
     ]
   })
-
-  tags = {
-    Project = var.project_name
-  }
+  tags = { Project = var.project_name }
 }
 
 resource "aws_iam_role_policy_attachment" "glue_crawler_policy_attach" {
@@ -329,59 +246,50 @@ resource "aws_iam_role_policy_attachment" "glue_crawler_policy_attach" {
 }
 
 # --- Glue Crawler ---
-
 resource "aws_glue_crawler" "reddit_data_crawler" {
-  name          = "${var.project_name}-reddit-data-crawler" # Consider making this a variable
+  name          = "${var.project_name}${var.glue_crawler_name_suffix}"
   database_name = aws_glue_catalog_database.reddit_data_db.name
   role          = aws_iam_role.glue_crawler_role.arn
 
   s3_target {
-    path = "s3://${aws_s3_bucket.reddit_data.id}/${var.s3_key_prefix}/"
+    path = "s3://${aws_s3_bucket.reddit_data_new.id}/${var.s3_key_prefix}/" # Points to NEW bucket
   }
 
-  # Example: Run weekly on Saturday at 2 AM UTC after Friday's Lambda run
-  schedule = "cron(0 2 ? * SAT *)"
+  schedule = "cron(0 2 ? * SAT *)" # Example: Weekly Saturday 2 AM UTC
 
   configuration = jsonencode({
     Version = 1.0,
     CrawlerOutput = {
-      Partitions      = { AddOrUpdateBehavior = "InheritFromTable" }, # Important for partitioned data
-      Tables          = { AddOrUpdateBehavior = "MergeNewColumns" }   # Good for schema evolution
+      Partitions = { AddOrUpdateBehavior = "InheritFromTable" }, # This is fine. Once table is created with partitions, it will inherit.
+                                                                # Alternative: "Detect" might be slightly more aggressive for initial creation if it struggles.
+      Tables     = { AddOrUpdateBehavior = "MergeNewColumns" }
+    },
+    Grouping = {
+      TableGroupingPolicy = "CombineCompatibleSchemas" # Helps ensure one table is created if schemas are similar
     }
   })
 
   schema_change_policy {
-    update_behavior = "UPDATE_IN_DATABASE" # Or "LOG"
-    delete_behavior = "LOG"                # Or "DEPRECATE_IN_DATABASE", "DELETE_FROM_DATABASE"
+    update_behavior = "UPDATE_IN_DATABASE"
+    delete_behavior = "LOG" # Or "DEPRECATE_IN_DATABASE"
   }
 
-  # Optional: specify table prefix if crawler creates multiple tables
-  # table_prefix = "reddit_"
-
-  tags = {
-    Project = var.project_name
-  }
-
+  tags = { Project = var.project_name }
   depends_on = [
     aws_iam_role.glue_crawler_role,
-    aws_glue_catalog_database.reddit_data_db
+    aws_glue_catalog_database.reddit_data_db,
+    aws_s3_bucket.reddit_data_new # Ensure bucket exists before crawler
   ]
 }
 
 # --- S3 Bucket for Athena Query Results ---
-
 resource "aws_s3_bucket" "athena_query_results" {
-  bucket = "${lower(var.project_name)}-athena-results-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}" # Consider making this a variable
-
-  tags = {
-    Project = var.project_name
-    Purpose = "Stores Athena query results for ${var.project_name}"
-  }
+  bucket = "${lower(var.project_name)}${var.athena_results_bucket_suffix}-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
+  tags   = { Project = var.project_name }
 }
 
 resource "aws_s3_bucket_public_access_block" "athena_query_results_public_access" {
-  bucket = aws_s3_bucket.athena_query_results.id
-
+  bucket                  = aws_s3_bucket.athena_query_results.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -390,33 +298,21 @@ resource "aws_s3_bucket_public_access_block" "athena_query_results_public_access
 
 resource "aws_s3_bucket_versioning" "athena_query_results_versioning" {
   bucket = aws_s3_bucket.athena_query_results.id
-  versioning_configuration {
-    status = "Enabled"
-  }
+  versioning_configuration { status = "Enabled" }
 }
 
 # --- Athena Workgroup ---
-
 resource "aws_athena_workgroup" "reddit_analyzer_workgroup" {
-  name = "${var.project_name}-workgroup" # Consider making this a variable
-  description = "Athena workgroup for querying Reddit analysis data"
+  name        = "${var.project_name}${var.athena_workgroup_name_suffix}"
+  description = "Athena workgroup for Reddit analysis"
   state       = "ENABLED"
-
   configuration {
     result_configuration {
       output_location = "s3://${aws_s3_bucket.athena_query_results.id}/"
     }
-    # Optional: enforce workgroup configuration to prevent users from overriding output location
-    enforce_workgroup_configuration = true
-    # Optional: publish CloudWatch metrics for Athena queries
+    enforce_workgroup_configuration    = true
     publish_cloudwatch_metrics_enabled = true
-    # Optional: control query costs
-    # bytes_scanned_cutoff_per_query = 1000000000 # 1GB, example
   }
-
-  tags = {
-    Project = var.project_name
-  }
-
+  tags       = { Project = var.project_name }
   depends_on = [aws_s3_bucket.athena_query_results]
 }
